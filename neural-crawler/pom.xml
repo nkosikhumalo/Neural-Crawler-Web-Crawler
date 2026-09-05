@@ -1,0 +1,27 @@
+
+<!--
+  PROJECT: Neural Crawler - pom.xml
+  ===================================
+  This is the Maven Project Object Model (POM) file — the heart of the build system.
+  It defines the project metadata, Java version, and all external dependencies this
+  application needs to compile and run.
+
+  WHAT IT DOES:
+  - Declares the project as a Spring Boot application using the spring-boot-starter-parent,
+    which provides sensible defaults for dependency versions, plugin config, and packaging.
+  - Pulls in all required libraries: Spring Web (REST layer), Thymeleaf (HTML templating),
+    Jsoup (HTML parsing), Apache HttpClient (HTTP requests), Jackson (JSON serialization),
+    OpenCSV (CSV export), and the Playwright Java SDK (for JavaScript-rendered pages).
+  - Configures the Maven build to produce an executable JAR via the Spring Boot Maven plugin.
+
+  WHY IT EXISTS:
+  Without this file Maven cannot resolve dependencies or build the project. Every library
+  used across all other files is declared here. Adding or removing a dependency happens
+  here first.
+
+  CONNECTS TO:
+  - Every Java source file in the project indirectly — they all rely on the libraries
+    declared here being on the classpath.
+  - The Spring Boot Maven plugin connects to the main application entry point class
+    (NeuralCrawlerApplication.java) to package and run the app.
+-->
