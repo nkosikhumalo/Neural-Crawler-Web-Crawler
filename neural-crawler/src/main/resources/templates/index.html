@@ -1,0 +1,30 @@
+
+<!--
+  FILE: index.html (Thymeleaf template)
+  =======================================
+  The main dashboard page of the Neural Crawler web UI. This is what the user sees
+  when they navigate to http://localhost:8080 in their browser.
+
+  WHAT IT CONTAINS:
+  - A URL input field and "Start Crawl" button that triggers the crawl via a
+    JavaScript fetch() POST to /api/crawl.
+  - Optional fields for max depth, max pages, and crawl delay (advanced settings).
+  - A status panel showing live crawl progress: current status label, pages visited
+    counter, and items found counter. The JS polls GET /api/crawl/status every 2 seconds
+    while a crawl is running.
+  - A results table that renders extracted book data (title, price, availability) once
+    the crawl completes or as items come in.
+  - Export buttons ("Download CSV", "Download JSON") that hit the export endpoints.
+  - Thymeleaf th:* attributes allow server-side data injection if UIController passes
+    model attributes (e.g., pre-fill last used URL).
+
+  WHY IT EXISTS:
+  This is the entire user-facing interface — the Flask/Jinja2 template equivalent.
+  It decouples the presentation layer from backend logic and is served by UIController.
+
+  CONNECTS TO:
+  - UIController maps GET / to render this template.
+  - static/js/app.js provides all the interactivity and API calls.
+  - static/css/style.css provides the visual styling.
+  - CrawlController REST endpoints are called by the JavaScript in this page.
+-->

@@ -1,0 +1,26 @@
+
+<!--
+  FILE: results.html (Thymeleaf template)
+  =========================================
+  An optional dedicated results page for viewing crawl output in a full-page
+  server-rendered table (alternative to the AJAX-rendered table in index.html).
+
+  WHAT IT CONTAINS:
+  - A Thymeleaf th:each loop that iterates over a List<BookItem> model attribute
+    and renders each book as a table row with columns for title, price, availability,
+    rating, and URL.
+  - A summary header showing total items count, crawl duration, and source URL.
+  - Pagination controls if the result set is large (server-side pagination).
+  - "Back to Dashboard" link and export download buttons.
+
+  WHY IT EXISTS:
+  Provides a clean, bookmarkable full-page view of results — useful if the user wants
+  to share a results URL or view data without the crawl control UI in the way.
+  Also demonstrates Thymeleaf's server-side templating as an alternative to pure SPA.
+
+  CONNECTS TO:
+  - UIController maps GET /results to render this template, injecting the items list
+    as a model attribute.
+  - BookItem is the object type Thymeleaf iterates over to build table rows.
+  - static/css/style.css styles the table layout.
+-->
