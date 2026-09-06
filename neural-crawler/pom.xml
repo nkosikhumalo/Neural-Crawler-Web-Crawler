@@ -1,27 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-<!--
-  PROJECT: Neural Crawler - pom.xml
-  ===================================
-  This is the Maven Project Object Model (POM) file — the heart of the build system.
-  It defines the project metadata, Java version, and all external dependencies this
-  application needs to compile and run.
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.0</version>
+        <relativePath/>
+    </parent>
 
-  WHAT IT DOES:
-  - Declares the project as a Spring Boot application using the spring-boot-starter-parent,
-    which provides sensible defaults for dependency versions, plugin config, and packaging.
-  - Pulls in all required libraries: Spring Web (REST layer), Thymeleaf (HTML templating),
-    Jsoup (HTML parsing), Apache HttpClient (HTTP requests), Jackson (JSON serialization),
-    OpenCSV (CSV export), and the Playwright Java SDK (for JavaScript-rendered pages).
-  - Configures the Maven build to produce an executable JAR via the Spring Boot Maven plugin.
+    <groupId>com.neuralcrawler</groupId>
+    <artifactId>neural-crawler</artifactId>
+    <version>0.1.0</version>
+    <name>neural-crawler</name>
+    <description>Web scraping application built with Spring Boot, Jsoup, and Thymeleaf</description>
 
-  WHY IT EXISTS:
-  Without this file Maven cannot resolve dependencies or build the project. Every library
-  used across all other files is declared here. Adding or removing a dependency happens
-  here first.
+    <properties>
+        <java.version>21</java.version>
+        <jsoup.version>1.18.1</jsoup.version>
+        <opencsv.version>5.9</opencsv.version>
+        <httpclient.version>5.3.1</httpclient.version>
+        <playwright.version>1.44.0</playwright.version>
+    </properties>
 
-  CONNECTS TO:
-  - Every Java source file in the project indirectly — they all rely on the libraries
-    declared here being on the classpath.
-  - The Spring Boot Maven plugin connects to the main application entry point class
-    (NeuralCrawlerApplication.java) to package and run the app.
--->
+    <dependencies>
+        <!-- Web MVC for REST endpoints -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Bean Validation for @NotBlank, @Min etc. on DTOs -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- HTML Templating for Flask-like Web UI -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <!-- HTML Scraping & Parsing Engine -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>${jsoup.version}</version>
+        </dependency>
+
+        <!-- Apache HttpClient 5 — full HTTP control (headers, redirects, timeouts, proxies) -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>${httpclient.version}</version>
+        </dependency>
+
+        <!-- Playwright — headless browser for JavaScript-rendered pages -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>${playwright.version}</version>
+        </dependency>
+
+        <!-- CSV File Export -->
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>${opencsv.version}</version>
+        </dependency>
+
+        <!-- Lombok to eliminate boilerplate getters/setters -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Testing Frameworks -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+
