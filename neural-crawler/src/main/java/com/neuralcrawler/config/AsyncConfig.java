@@ -2,25 +2,33 @@
 /*
   FILE: AsyncConfig.java
   ========================
-  Spring configuration class that enables and customizes asynchronous method execution
-  across the application.
+  Spring configuration class that enables @Async execution and configures the
+  thread pool used for parallel source crawl tasks and scheduled runs.
 
   WHAT IT DOES:
-  - Annotated with @EnableAsync to activate Spring's @Async infrastructure so methods
-    annotated with @Async can be executed on background threads.
-  - Defines a custom TaskExecutor bean (backed by a ThreadPoolTaskExecutor) with tuned
-    core pool size, max pool size, and queue capacity appropriate for I/O-bound crawl tasks.
-  - Configures the thread name prefix so logs clearly identify crawler background threads
-    (e.g., "crawler-thread-1", "crawler-thread-2").
+  - Annotated with @EnableAsync to activate Spring's @Async proxy infrastructure
+    so any method annotated with @Async runs on a background thread rather than
+    the caller's thread.
+  - Also annotated with @EnableScheduling to activate @Scheduled method support,
+    enabling SchedulerService's cron-triggered radar runs.
+  - Defines a ThreadPoolTaskExecutor bean named "crawlerTaskExecutor" with:
+      - corePoolSize: minimum threads always alive (set to number of sources, e.g., 3)
+      - maxPoolSize: ceiling under burst load (e.g., 6)
+      - queueCapacity: backlog buffer for queued tasks (e.g., 20)
+      - threadNamePrefix: "radar-crawler-" so logs clearly identify background threads
+      - waitForTasksToCompleteOnShutdown: true — ensures in-flight crawls finish
+        cleanly rather than being interrupted when the app stops
+      - awaitTerminationSeconds: 30 — max wait for shutdown completion
 
   WHY IT EXISTS:
-  Web crawling is I/O-heavy and slow. Without async execution, a single HTTP request to
-  a slow target site would block the entire web server thread, making the UI unresponsive.
-  This class is what keeps the frontend snappy while crawls run in the background.
+  SchedulerService fires three parallel crawl tasks per snapshot run (one per source).
+  Without a properly sized thread pool those tasks would queue and run serially,
+  making each snapshot take 3x longer than necessary. This config is what enables
+  true concurrent multi-source crawling.
 
   CONNECTS TO:
-  - CrawlerService uses @Async on its crawl-triggering methods — those run on the executor
-    defined here.
-  - CrawlerConfig may share or reference the thread pool settings to stay consistent.
+  - CrawlerService's @Async runSourceCrawl() method executes on the pool defined here.
+  - SchedulerService's @Scheduled methods are activated by @EnableScheduling here.
   - Spring picks this up automatically through component scanning from NeuralCrawlerApplication.
+  - application.properties can supply pool size values via @Value injection.
 */
