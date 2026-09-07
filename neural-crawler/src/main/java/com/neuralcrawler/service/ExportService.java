@@ -2,26 +2,30 @@
 /*
   FILE: ExportService.java
   ==========================
-  Service class responsible for serializing extracted crawl results into
-  downloadable file formats (CSV and JSON).
+  Orchestration service for export operations — the single entry point the controller
+  calls, which then delegates to the appropriate format-specific exporter.
 
   WHAT IT DOES:
-  - Takes the in-memory list of CrawlResult / BookItem domain objects and converts
-    them into a CSV byte stream using OpenCSV, writing column headers automatically
-    from field names.
-  - Converts the same data into a formatted JSON byte stream using Jackson ObjectMapper.
-  - Returns byte arrays or InputStreams that the controller wraps into HTTP download
-    responses with correct Content-Disposition and Content-Type headers.
-  - Handles edge cases: empty result sets, special characters in data, null fields.
+  - Accepts an ExportRequest from CrawlController.
+  - Queries CrawlResultRepository to fetch the TechTrend list for the requested
+    snapshotId (or the latest snapshot if snapshotId is null).
+  - Applies any source or category filters specified in the ExportRequest.
+  - Optionally fetches TrendDelta records from the repository if includeDeltas is true.
+  - Delegates to CsvExporter or JsonExporter based on ExportRequest.format.
+  - Returns the resulting byte[] with the correct MIME type string so the controller
+    can set the Content-Type and Content-Disposition headers on the HTTP response.
+  - Handles the edge case of an empty result set — returns a valid but empty
+    CSV header row or empty JSON array rather than throwing.
 
   WHY IT EXISTS:
-  Export logic is isolated here so it can be reused by multiple endpoints and tested
-  independently. If a new export format (e.g., XML, Excel) is needed later, only this
-  file needs updating.
+  Keeps the controller free of any serialization logic and keeps each exporter free
+  of any data-fetching logic. This service is the glue between data access and format
+  serialization.
 
   CONNECTS TO:
-  - CrawlerService calls this when an export is requested.
-  - CrawlController passes the result back to the HTTP response.
-  - BookItem / CrawlResult models are the input data this service serializes.
-  - pom.xml must have OpenCSV and Jackson dependencies declared.
+  - CrawlController calls export(ExportRequest) here for both /api/export/csv and json.
+  - CrawlResultRepository provides the TechTrend and TrendDelta data.
+  - CsvExporter handles CSV byte[] production.
+  - JsonExporter handles JSON byte[] production.
+  - ExportRequest carries the filter and format parameters.
 */
