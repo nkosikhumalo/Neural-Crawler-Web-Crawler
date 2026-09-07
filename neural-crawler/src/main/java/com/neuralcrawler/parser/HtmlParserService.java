@@ -2,34 +2,31 @@
 /*
   FILE: HtmlParserService.java
   ==============================
-  The HTML parsing and data extraction layer — the equivalent of a Scrapy Spider's
-  parse() callback method.
+  Base interface / abstract class defining the parsing contract that all
+  source-specific parsers must implement.
 
   WHAT IT DOES:
-  - Accepts raw HTML string and the source URL, and uses Jsoup to parse it into a
-    Document (DOM tree).
-  - Applies CSS selectors to locate target elements:
-      - ".product_pod h3 a"       → book title
-      - ".price_color"            → price
-      - ".instock.availability"   → stock status
-      - "li.next a[href]"         → next page pagination link
-  - Extracts text content and attributes (href, src) from matched elements and
-    maps them into BookItem domain objects.
-  - Discovers outbound links (anchor tags) within the page and filters them to
-    stay within the same domain, returning them for the CrawlerEngine to enqueue.
-  - Handles malformed or missing elements gracefully — a missing price element
-    produces a null/empty field rather than throwing an exception.
+  - Defines the shared parse(html, sourceUrl) method signature that every
+    source-specific parser (GitHubTrendingParser, HackerNewsParser,
+    MavenCentralParser) implements.
+  - Provides shared utility methods used by all parsers:
+      - cleanText(raw)         — strips whitespace, non-breaking spaces, and HTML entities
+      - resolveAbsoluteUrl(href, base) — converts relative hrefs to absolute URLs
+      - safeSelect(doc, selector) — wraps Jsoup select() calls with null-safe fallback
+        so a missing element returns empty string rather than throwing NullPointerException
+  - Defines the return type: ParseResult — a container holding a List<TechTrend>
+    (extracted items) and a List<String> (discovered follow-up URLs for the engine).
 
   WHY IT EXISTS:
-  Isolating parsing from fetching and orchestration means you can unit test extraction
-  logic with a local HTML fixture file without making any network calls. It also makes
-  adding a new site's selector configuration straightforward.
+  With three different source parsers that all need the same utility methods and
+  the same return contract, a shared base prevents code duplication and ensures
+  CrawlerEngine can call any parser through a single consistent interface without
+  knowing which source it's working with.
 
   CONNECTS TO:
-  - CrawlerEngine calls parse(html, url) and gets back a ParseResult containing
-    extracted BookItem objects and discovered links.
-  - BookItem is the domain model that this parser populates.
-  - SelectorConfig (from application.properties or a config object) provides the
-    CSS selector strings so they're not hardcoded.
-  - Jsoup library (declared in pom.xml) does all DOM work here.
+  - GitHubTrendingParser, HackerNewsParser, MavenCentralParser all extend/implement this.
+  - CrawlerEngine calls the parse() method defined here on whichever parser matches
+    the current source being crawled.
+  - TechTrend is the domain object all parsers populate and return.
+  - Jsoup Document is the input type — produced by Jsoup.parse(html) in each subclass.
 */
