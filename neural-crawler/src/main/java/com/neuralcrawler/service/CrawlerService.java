@@ -2,29 +2,33 @@
 /*
   FILE: CrawlerService.java
   ===========================
-  The core orchestration layer — the brain of the application. Sits between the
-  controller and the low-level crawler/parser components.
+  The per-source crawl orchestration layer — manages the execution of a single
+  source crawl task (GitHub, HackerNews, or Maven Central) within a snapshot run.
 
   WHAT IT DOES:
-  - Receives a crawl request (target URL, depth, selector config) from the controller.
-  - Annotated with @Async so when the controller calls startCrawl(), it immediately
-    returns a CompletableFuture while crawling runs on a background thread.
-  - Manages crawl job lifecycle: initializing state, tracking progress percentage,
-    handling completion or failure, and making results available to the controller.
-  - Coordinates between CrawlerEngine (fetching), HtmlParserService (extracting data),
-    and CrawlResultRepository/DAO (storing results).
-  - Exposes methods: startCrawl(CrawlRequestDTO), getStatus(), getResults(), cancelCrawl().
+  - Receives a CrawlJob (containing source type and target URL) from SchedulerService.
+  - Annotated with @Async so each source crawls on its own background thread, allowing
+    all three sources to run in parallel within one snapshot run.
+  - Manages the CrawlJob lifecycle: sets status to RUNNING, tracks pagesVisited and
+    itemsFound as work progresses, sets COMPLETED or FAILED on finish.
+  - Coordinates between CrawlerEngine (URL fetching and queuing), the appropriate
+    source parser (GitHubTrendingParser / HackerNewsParser / MavenCentralParser),
+    NormalizationService (canonicalizing extracted tech names), and
+    CrawlResultRepository (persisting TechTrend records).
+  - Exposes runSourceCrawl(CrawlJob) — the main async entry point called by SchedulerService.
+  - Exposes cancelCrawl(jobId) — signals the engine's stop flag for graceful shutdown.
 
   WHY IT EXISTS:
-  The service layer enforces the single-responsibility principle. Business rules and
-  workflow logic live here, not in controllers (HTTP concerns) or crawlers (I/O concerns).
-  This also makes the business logic independently testable with mocked dependencies.
+  Separates per-source crawl orchestration from the scheduling logic (SchedulerService)
+  and the analysis logic (TrendAnalysisService). Each class has one clear responsibility.
+  This also makes it straightforward to test a single source crawl in isolation.
 
   CONNECTS TO:
-  - CrawlController calls into this service.
-  - CrawlerEngine is called from here to do the actual HTTP fetching.
-  - HtmlParserService is called from here after pages are fetched.
-  - CrawlResultRepository stores the extracted BookItem / generic item data.
-  - ExportService is called from here when the controller requests an export.
+  - SchedulerService calls runSourceCrawl() for each source job.
+  - CrawlerEngine does the actual HTTP fetching and URL queuing.
+  - Source parsers are selected and called based on the CrawlJob's source type.
+  - NormalizationService.normalize() is called on each extracted TechTrend.
+  - CrawlResultRepository.save() persists each extracted TechTrend record.
+  - CrawlJob is updated throughout execution and reflects final status on return.
   - AsyncConfig's executor runs this service's @Async methods.
 */
