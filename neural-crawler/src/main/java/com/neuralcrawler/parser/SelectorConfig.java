@@ -1,26 +1,56 @@
+package com.neuralcrawler.parser;
+
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /*
   FILE: SelectorConfig.java
   ===========================
-  A configuration/data class that holds the CSS selector strings and XPath expressions
-  used by HtmlParserService to locate data on target web pages.
-
-  WHAT IT DOES:
-  - Defines fields for each piece of data to extract: titleSelector, priceSelector,
-    availabilitySelector, nextPageSelector, itemContainerSelector, etc.
-  - Can be loaded from application.properties via @ConfigurationProperties so selectors
-    are externally configurable without recompiling — useful when crawling different sites.
-  - Can also be passed in dynamically as part of a CrawlRequestDTO if the UI allows
-    users to specify custom selectors for arbitrary sites.
-
-  WHY IT EXISTS:
-  Hardcoding selectors inside HtmlParserService would make the crawler rigid — tied
-  to one site forever. Externalizing selectors into this config class turns the crawler
-  into a general-purpose extraction engine that works on any site with the right config.
+  @ConfigurationProperties POJO binding radar.selectors.* from application.properties.
+  Injected into all three source parsers. Updating a broken selector is a config
+  change only — no recompile needed.
 
   CONNECTS TO:
-  - HtmlParserService reads selector strings from this class to know what to look for.
-  - CrawlRequestDTO may carry a SelectorConfig when the user supplies custom selectors.
-  - application.properties can define default selector values mapped here via Spring's
-    @ConfigurationProperties binding.
+  - GitHubTrendingParser injects this for GitHub-specific selectors.
+  - HackerNewsParser injects this for HN selectors and the tech keyword list.
+  - application.properties defines the actual values under radar.selectors.*
 */
+@Getter
+@Setter
+@Component
+@ConfigurationProperties(prefix = "radar.selectors")
+public class SelectorConfig {
+
+    // --- GitHub Trending selectors ---
+    private String githubCard = "article.Box-row";
+    private String githubRepoName = "h2.h3 a";
+    private String githubDescription = "p.col-9";
+    private String githubLanguage = "span[itemprop=programmingLanguage]";
+    private String githubStarCount = "a.Link--muted:has(svg.octicon-star)";
+    private String githubStarsToday = "span.d-inline-block.float-sm-right";
+    private String githubTopicTag = "a.topic-tag";
+
+    // --- Hacker News selectors ---
+    private String hnStoryRow = "tr.athing";
+    private String hnStoryTitle = "span.titleline a";
+    private String hnScore = "span.score";
+    private String hnCommentLink = "a[href*=item]";
+    private String hnNextPage = "a.morelink";
+
+    // --- Tech keyword list for HN title scanning ---
+    private List<String> techKeywords = new ArrayList<>(List.of(
+            "Rust", "Go", "Golang", "TypeScript", "JavaScript", "Python",
+            "Kotlin", "Swift", "Zig", "Bun", "Deno", "Node.js", "Node",
+            "React", "Vue", "Angular", "Svelte", "htmx", "WASM", "WebAssembly",
+            "Docker", "Kubernetes", "K8s", "Terraform", "Pulumi",
+            "LLM", "GPT", "Claude", "Ollama", "Llama",
+            "Spring Boot", "Quarkus", "Micronaut",
+            "PostgreSQL", "SQLite", "Redis", "Kafka", "Grafana",
+            "Nix", "Linux", "RISC-V"
+    ));
+}
