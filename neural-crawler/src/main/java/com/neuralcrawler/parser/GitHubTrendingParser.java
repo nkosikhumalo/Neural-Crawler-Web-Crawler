@@ -1,40 +1,103 @@
+package com.neuralcrawler.parser;
+
+import com.neuralcrawler.model.TechCategory;
+import com.neuralcrawler.model.TechTrend;
+import com.neuralcrawler.model.TrendSource;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /*
   FILE: GitHubTrendingParser.java
   =================================
-  Source-specific parser for github.com/trending — extracts trending repositories
-  and their associated metrics from GitHub's trending page HTML.
-
-  WHAT IT DOES:
-  - Extends / implements HtmlParserService to fulfill the shared parse() contract.
-  - Uses Jsoup CSS selectors targeting GitHub Trending's DOM structure:
-      - "article.Box-row"              → each repository card container
-      - "h2.h3 a"                      → repository name and owner (e.g., "rust-lang/rust")
-      - "p.col-9"                      → repository description text
-      - "span[itemprop=programmingLanguage]" → primary programming language
-      - "a.Link--muted svg.octicon-star" parent → star count text
-      - "a.Link--muted svg.octicon-repo-forked" parent → fork count text
-      - "span.d-inline-block.float-sm-right" → stars gained today/this week
-      - "a.topic-tag"                  → repository topic tags
-  - Maps each repository card into a TechTrend with:
-      - rawName set to the repository name
-      - starCount set to the total star count (parsed from "12.5k" style strings)
-      - tags set to the list of topic tags for NormalizationService to process
-      - source set to TrendSource.GITHUB
-  - Handles GitHub's "k" and "m" number abbreviations (e.g., "12.5k" → 12500).
-  - Discovers the language filter links at the top of the page and optionally returns
-    them as follow-up URLs if multi-language crawling is configured.
-
-  WHY IT EXISTS:
-  GitHub Trending is the highest-signal source in the radar — star velocity here is
-  the clearest indicator of what the developer community is currently excited about.
-  A dedicated parser keeps GitHub-specific selector logic isolated and independently
-  testable with a saved GitHub HTML fixture.
+  Parses github.com/trending pages and extracts repository data into TechTrend records.
 
   CONNECTS TO:
-  - HtmlParserService defines the interface this implements.
-  - CrawlerEngine calls this parser when the current URL matches github.com/trending.
-  - NormalizationService processes the raw tags extracted here into canonical names.
-  - TechTrend is populated and returned from each parsed repository card.
-  - SelectorConfig holds the CSS selector strings (externalized from this file).
+  - HtmlParserService defines the abstract parse() contract this implements.
+  - SelectorConfig provides the CSS selector strings.
+  - CrawlerEngine calls parse() when the source is GITHUB.
+  - NormalizationService processes the rawName and tags after this returns.
 */
+@Component
+public class GitHubTrendingParser extends HtmlParserService {
+
+    private final SelectorConfig selectors;
+
+    public GitHubTrendingParser(SelectorConfig selectors) {
+        this.selectors = selectors;
+    }
+
+    @Override
+    public ParseResult parse(String html, String sourceUrl, String snapshotId) {
+        if (html == null || html.isBlank()) return ParseResult.empty();
+
+        Document doc = Jsoup.parse(html, sourceUrl);
+        Elements cards = doc.select(selectors.getGithubCard());
+
+        List<TechTrend> items = new ArrayList<>();
+        List<String> nextUrls = new ArrayList<>();
+
+        for (Element card : cards) {
+            TechTrend trend = parseCard(card, sourceUrl, snapshotId);
+            if (trend != null) items.add(trend);
+        }
+
+        // Discover language filter links as follow-up URLs
+        doc.select("a.filter-item[href*=/trending/]").forEach(a -> {
+            String href = a.absUrl("href");
+            if (!href.isBlank()) nextUrls.add(href);
+        });
+
+        return new ParseResult(items, nextUrls);
+    }
+
+    private TechTrend parseCard(Element card, String sourceUrl, String snapshotId) {
+        // Repository name — format is "owner / repo"
+        Element nameEl = card.selectFirst(selectors.getGithubRepoName());
+        if (nameEl == null) return null;
+
+        String repoPath = cleanText(nameEl.attr("href")).replaceFirst("^/", "");
+        String repoName = repoPath.contains("/") ? repoPath.split("/")[1] : repoPath;
+
+        // Description
+        Element descEl = card.selectFirst(selectors.getGithubDescription());
+        String description = descEl != null ? cleanText(descEl.text()) : "";
+
+        // Primary language
+        Element langEl = card.selectFirst(selectors.getGithubLanguage());
+        String language = langEl != null ? cleanText(langEl.text()) : "";
+
+        // Star count — text like "12,345" or "1.2k"
+        Element starEl = card.selectFirst(selectors.getGithubStarCount());
+        long stars = starEl != null ? parseAbbreviatedNumber(starEl.text()) : 0L;
+
+        // Topic tags
+        List<String> tags = new ArrayList<>();
+        card.select(selectors.getGithubTopicTag()).forEach(t -> tags.add(cleanText(t.text())));
+
+        // Add language as a tag too if present
+        if (!language.isBlank() && !tags.contains(language)) {
+            tags.add(0, language);
+        }
+
+        String fullUrl = "https://github.com/" + repoPath;
+
+        TechTrend trend = TechTrend.of(repoName, TrendSource.GITHUB, snapshotId);
+        trend.setSourceUrl(fullUrl);
+        trend.setDescription(description.isBlank() ? null : description);
+        trend.setStarCount(stars > 0 ? stars : null);
+        trend.setTags(tags);
+
+        // Derive category from language if available
+        if (!language.isBlank()) {
+            trend.setCategory(TechCategory.LANGUAGE);
+        }
+
+        return trend;
+    }
+}
