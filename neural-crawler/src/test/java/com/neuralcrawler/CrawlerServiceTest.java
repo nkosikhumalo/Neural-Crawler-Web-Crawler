@@ -1,28 +1,96 @@
+package com.neuralcrawler;
 
-/*
-  FILE: CrawlerServiceTest.java
-  ===============================
-  Integration/unit test class for CrawlerService — verifies crawl orchestration
-  logic using mocked dependencies.
+import com.neuralcrawler.crawler.CrawlerEngine;
+import com.neuralcrawler.dao.CrawlResultRepository;
+import com.neuralcrawler.model.*;
+import com.neuralcrawler.service.CrawlerService;
+import com.neuralcrawler.service.NormalizationService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-  WHAT IT TESTS:
-  - That startCrawl() initializes a CrawlJob with PENDING status and transitions it
-    to RUNNING when the async method executes.
-  - That getStatus() returns the correct CrawlJob state at each stage.
-  - That when HttpFetcherService (mocked) returns HTML, CrawlerService coordinates
-    parser and repository calls correctly.
-  - That cancelCrawl() sets the stop signal and the crawl terminates gracefully.
-  - That errors thrown by HttpFetcherService are caught and set the CrawlJob to FAILED
-    with an appropriate error message.
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
-  WHY IT EXISTS:
-  CrawlerService coordinates multiple collaborators — testing it with mocks isolates
-  the orchestration logic from real HTTP calls, database writes, and timing issues.
-  It validates that the business workflow behaves correctly in isolation.
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-  CONNECTS TO:
-  - CrawlerService is the class under test.
-  - Mockito is used to mock CrawlerEngine, HtmlParserService, and CrawlResultRepository.
-  - JUnit 5 + Spring Boot Test provide the test runner and context.
-  - @MockBean annotations replace real beans in the Spring context with mocks.
-*/
+@ExtendWith(MockitoExtension.class)
+class CrawlerServiceTest {
+
+    @Mock
+    private CrawlerEngine engine;
+
+    @Mock
+    private NormalizationService normalizationService;
+
+    @Mock
+    private CrawlResultRepository repository;
+
+    @InjectMocks
+    private CrawlerService crawlerService;
+
+    private CrawlJob job;
+    private List<String> seedUrls;
+
+    @BeforeEach
+    void setUp() {
+        job = CrawlJob.create("snapshot-123", TrendSource.GITHUB);
+        seedUrls = List.of("https://github.com/trending");
+    }
+
+    @Test
+    void runSourceCrawl_transitionsJobToCompleted_whenEngineSucceeds() throws Exception {
+        TechTrend trend = TechTrend.of("rust", TrendSource.GITHUB, "snapshot-123");
+        when(engine.crawl(any(), any(), anyBoolean())).thenReturn(List.of(trend));
+        when(normalizationService.normalize(anyString())).thenReturn("Rust");
+        when(normalizationService.normalizeTags(any())).thenReturn(List.of("Rust"));
+
+        CompletableFuture<CrawlJob> future = crawlerService.runSourceCrawl(job, seedUrls);
+        CrawlJob result = future.get();
+
+        assertThat(result.getStatus()).isEqualTo(CrawlStatus.COMPLETED);
+        assertThat(result.getItemsFound()).isEqualTo(1);
+        verify(repository, times(1)).saveTrend(any(TechTrend.class));
+    }
+
+    @Test
+    void runSourceCrawl_normalizesEachTrend() throws Exception {
+        TechTrend t1 = TechTrend.of("golang", TrendSource.GITHUB, "snapshot-123");
+        TechTrend t2 = TechTrend.of("nodejs", TrendSource.GITHUB, "snapshot-123");
+        when(engine.crawl(any(), any(), anyBoolean())).thenReturn(List.of(t1, t2));
+        when(normalizationService.normalize(anyString())).thenReturn("Normalized");
+        when(normalizationService.normalizeTags(any())).thenReturn(List.of());
+
+        crawlerService.runSourceCrawl(job, seedUrls).get();
+
+        verify(normalizationService, times(2)).normalize(anyString());
+    }
+
+    @Test
+    void runSourceCrawl_setsJobToFailed_whenEngineThrows() throws Exception {
+        when(engine.crawl(any(), any(), anyBoolean())).thenThrow(new RuntimeException("Network error"));
+
+        CompletableFuture<CrawlJob> future = crawlerService.runSourceCrawl(job, seedUrls);
+        CrawlJob result = future.get();
+
+        assertThat(result.getStatus()).isEqualTo(CrawlStatus.FAILED);
+        assertThat(result.getErrorMessage()).contains("Network error");
+    }
+
+    @Test
+    void runSourceCrawl_noItems_marksJobFailedWithZeroCount() throws Exception {
+        when(engine.crawl(any(), any(), anyBoolean())).thenReturn(List.of());
+
+        CompletableFuture<CrawlJob> future = crawlerService.runSourceCrawl(job, seedUrls);
+        CrawlJob result = future.get();
+
+        assertThat(result.getStatus()).isEqualTo(CrawlStatus.FAILED);
+        assertThat(result.getItemsFound()).isZero();
+        verify(repository, never()).saveTrend(any());
+    }
+}
