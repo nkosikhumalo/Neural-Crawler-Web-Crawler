@@ -1,34 +1,71 @@
+package com.neuralcrawler.service;
 
-/*
-  FILE: CrawlerService.java
-  ===========================
-  The per-source crawl orchestration layer — manages the execution of a single
-  source crawl task (GitHub, HackerNews, or Maven Central) within a snapshot run.
+import com.neuralcrawler.crawler.CrawlerEngine;
+import com.neuralcrawler.dao.CrawlResultRepository;
+import com.neuralcrawler.model.CrawlJob;
+import com.neuralcrawler.model.TechTrend;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
 
-  WHAT IT DOES:
-  - Receives a CrawlJob (containing source type and target URL) from SchedulerService.
-  - Annotated with @Async so each source crawls on its own background thread, allowing
-    all three sources to run in parallel within one snapshot run.
-  - Manages the CrawlJob lifecycle: sets status to RUNNING, tracks pagesVisited and
-    itemsFound as work progresses, sets COMPLETED or FAILED on finish.
-  - Coordinates between CrawlerEngine (URL fetching and queuing), the appropriate
-    source parser (GitHubTrendingParser / HackerNewsParser / MavenCentralParser),
-    NormalizationService (canonicalizing extracted tech names), and
-    CrawlResultRepository (persisting TechTrend records).
-  - Exposes runSourceCrawl(CrawlJob) — the main async entry point called by SchedulerService.
-  - Exposes cancelCrawl(jobId) — signals the engine's stop flag for graceful shutdown.
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
-  WHY IT EXISTS:
-  Separates per-source crawl orchestration from the scheduling logic (SchedulerService)
-  and the analysis logic (TrendAnalysisService). Each class has one clear responsibility.
-  This also makes it straightforward to test a single source crawl in isolation.
+@Service
+public class CrawlerService {
 
-  CONNECTS TO:
-  - SchedulerService calls runSourceCrawl() for each source job.
-  - CrawlerEngine does the actual HTTP fetching and URL queuing.
-  - Source parsers are selected and called based on the CrawlJob's source type.
-  - NormalizationService.normalize() is called on each extracted TechTrend.
-  - CrawlResultRepository.save() persists each extracted TechTrend record.
-  - CrawlJob is updated throughout execution and reflects final status on return.
-  - AsyncConfig's executor runs this service's @Async methods.
-*/
+    private static final Logger log = LoggerFactory.getLogger(CrawlerService.class);
+
+    @Value("${radar.sources.github.use-playwright:false}")
+    private boolean githubUsePlaywright;
+
+    private final CrawlerEngine engine;
+    private final NormalizationService normalizationService;
+    private final CrawlResultRepository repository;
+
+    public CrawlerService(CrawlerEngine engine,
+                          NormalizationService normalizationService,
+                          CrawlResultRepository repository) {
+        this.engine = engine;
+        this.normalizationService = normalizationService;
+        this.repository = repository;
+    }
+
+    @Async("crawlerTaskExecutor")
+    public CompletableFuture<CrawlJob> runSourceCrawl(CrawlJob job, List<String> seedUrls) {
+        job.start();
+        log.info("Starting crawl job {} for source {}", job.getJobId(), job.getSource());
+
+        try {
+            boolean usePlaywright = job.getSource().name().equals("GITHUB") && githubUsePlaywright;
+            List<TechTrend> items = engine.crawl(job, seedUrls, usePlaywright);
+
+            for (TechTrend trend : items) {
+                trend.setCanonicalName(normalizationService.normalize(trend.getRawName()));
+                trend.setTags(normalizationService.normalizeTags(trend.getTags()));
+                repository.saveTrend(trend);
+            }
+
+            if (items.isEmpty()) {
+                job.fail("Source returned no items after all fetch attempts.");
+                log.warn("Job {} returned no items for source {}.", job.getJobId(), job.getSource());
+            } else {
+                job.complete(items.size());
+                log.info("Job {} done — {} items saved.", job.getJobId(), items.size());
+            }
+
+        } catch (Exception e) {
+            log.error("Job {} failed: {}", job.getJobId(), e.getMessage(), e);
+            job.fail(e.getMessage());
+        }
+
+        return CompletableFuture.completedFuture(job);
+    }
+
+    public void cancelCrawl(String jobId) {
+        engine.stop(jobId);
+        log.info("Cancel signal sent to job {}", jobId);
+    }
+}
