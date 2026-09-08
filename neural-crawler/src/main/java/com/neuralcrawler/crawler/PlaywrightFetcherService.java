@@ -1,30 +1,81 @@
+package com.neuralcrawler.crawler;
+
+import com.microsoft.playwright.*;
+import com.neuralcrawler.util.UrlUtils;
+import jakarta.annotation.PreDestroy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 /*
   FILE: PlaywrightFetcherService.java
   =====================================
-  Advanced fetcher that uses Playwright for Java to render JavaScript-heavy pages
-  before extracting HTML content.
-
-  WHAT IT DOES:
-  - Launches a headless Chromium browser instance via the Playwright Java SDK.
-  - Navigates to the target URL, waits for the page's JavaScript to execute and the
-    DOM to fully render (using waitForLoadState or waitForSelector).
-  - Captures the final rendered HTML (page.content()) and returns it as a String —
-    the same return type as HttpFetcherService, making it a drop-in swap.
-  - Manages browser lifecycle: reuses a single browser context across requests for
-    performance, and shuts down cleanly when the crawl ends.
-  - Handles common dynamic content patterns: infinite scroll triggers, lazy-loaded
-    images, client-side pagination.
-
-  WHY IT EXISTS:
-  Standard Jsoup + HttpClient only sees the raw server response HTML. If a site uses
-  React, Vue, or Angular to render content client-side, the data simply isn't in the
-  raw HTML. This class solves that problem by running a real browser engine.
+  Headless Chromium fetcher for JavaScript-rendered pages. Drop-in alternative
+  to HttpFetcherService — returns the same String HTML but after JS execution.
 
   CONNECTS TO:
-  - CrawlerEngine can be configured (via application.properties) to use this class
-    instead of HttpFetcherService for specific domains or as a fallback.
-  - HtmlParserService receives the rendered HTML string exactly the same way it
-    receives static HTML — no changes needed in the parser.
-  - pom.xml must include the Playwright Java dependency.
+  - CrawlerEngine selects this when radar.sources.*.use-playwright=true in properties.
+  - Source parsers receive identical String HTML — no changes needed in parsers.
+  - @PreDestroy closes the browser and Playwright instance on app shutdown.
 */
+@Service
+public class PlaywrightFetcherService {
+
+    private static final Logger log = LoggerFactory.getLogger(PlaywrightFetcherService.class);
+
+    @Value("${playwright.timeout-ms:15000}")
+    private int timeoutMs;
+
+    private Playwright playwright;
+    private Browser browser;
+    private BrowserContext context;
+
+    /**
+     * Lazily initialises the Playwright browser on first call.
+     * Reuses the same BrowserContext for all subsequent requests.
+     */
+    private synchronized BrowserContext getContext() {
+        if (playwright == null) {
+            playwright = Playwright.create();
+            browser = playwright.chromium().launch(
+                    new BrowserType.LaunchOptions().setHeadless(true)
+            );
+            context = browser.newContext(new Browser.NewContextOptions()
+                    .setUserAgent("Mozilla/5.0 (compatible; NeuralCrawler/1.0)")
+                    .setJavaScriptEnabled(true)
+            );
+            log.info("Playwright browser initialised.");
+        }
+        return context;
+    }
+
+    /**
+     * Navigates to the given URL in a headless browser, waits for the page to
+     * settle, then returns the fully-rendered HTML as a String.
+     * Returns null if navigation fails or times out.
+     */
+    public String fetch(String url) {
+        try {
+            Page page = getContext().newPage();
+            page.setDefaultTimeout(timeoutMs);
+            page.navigate(url);
+            // Wait until no network activity for 500ms — signals JS has finished
+            page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE);
+            String html = page.content();
+            page.close();
+            return html;
+        } catch (PlaywrightException e) {
+            log.error("Playwright failed to fetch {}: {}", url, e.getMessage());
+            return null;
+        }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (context != null) context.close();
+        if (browser != null) browser.close();
+        if (playwright != null) playwright.close();
+        log.info("Playwright browser closed.");
+    }
+}
