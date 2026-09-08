@@ -72,6 +72,25 @@
             <version>${opencsv.version}</version>
         </dependency>
 
+        <!-- JPA for entity persistence and repository support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- H2 in-memory database for development -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Spring Security for API response headers and HTTPS enforcement -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
         <!-- Lombok to eliminate boilerplate getters/setters -->
         <dependency>
             <groupId>org.projectlombok</groupId>
