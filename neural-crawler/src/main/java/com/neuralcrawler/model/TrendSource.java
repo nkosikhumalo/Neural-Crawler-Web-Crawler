@@ -16,5 +16,7 @@ package com.neuralcrawler.model;
 public enum TrendSource {
     GITHUB,
     HACKERNEWS,
-    MAVEN_CENTRAL
+    HACKERNEWS_API,
+    MAVEN_CENTRAL,
+    STACKOVERFLOW_JOBS
 }
