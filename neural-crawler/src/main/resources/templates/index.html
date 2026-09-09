@@ -1,30 +1,30 @@
 
 <!--
-  FILE: index.html (Thymeleaf template)
-  =======================================
-  The main dashboard page of the Neural Crawler web UI. This is what the user sees
-  when they navigate to http://localhost:8080 in their browser.
+  FILE: index.html  — MINIMAL REDIRECT PLACEHOLDER
+  ===================================================
+  This Thymeleaf template is no longer the primary UI.
 
-  WHAT IT CONTAINS:
-  - A URL input field and "Start Crawl" button that triggers the crawl via a
-    JavaScript fetch() POST to /api/crawl.
-  - Optional fields for max depth, max pages, and crawl delay (advanced settings).
-  - A status panel showing live crawl progress: current status label, pages visited
-    counter, and items found counter. The JS polls GET /api/crawl/status every 2 seconds
-    while a crawl is running.
-  - A results table that renders extracted book data (title, price, availability) once
-    the crawl completes or as items come in.
-  - Export buttons ("Download CSV", "Download JSON") that hit the export endpoints.
-  - Thymeleaf th:* attributes allow server-side data injection if UIController passes
-    model attributes (e.g., pre-fill last used URL).
+  WHAT IT DOES NOW:
+  Serves a minimal HTML page at GET / that informs users the Angular frontend
+  is the actual interface, with a link to redirect them to localhost:4200 (or the
+  production Angular URL). This prevents a blank page or 404 if someone opens the
+  backend port directly in a browser.
 
-  WHY IT EXISTS:
-  This is the entire user-facing interface — the Flask/Jinja2 template equivalent.
-  It decouples the presentation layer from backend logic and is served by UIController.
+  WHAT REPLACED IT:
+  The Angular SPA is the full frontend for the Tech Stack Radar. It renders:
+  - Radar dashboard with live trend cards per technology
+  - Growth velocity charts (using Chart.js or ng2-charts)
+  - Source badges (GitHub / HackerNews / Maven) per tech entry
+  - Rising/declining leaderboard tables driven by TrendDelta data
+  - Snapshot history with timestamp-based navigation
+  - Export buttons triggering CSV/JSON downloads from the API
+
+  WHY THYMELEAF IS NO LONGER USED:
+  Server-rendered HTML pages can't provide the dynamic, real-time dashboard
+  experience the radar needs. Angular's component model and reactive HTTP client
+  are a better fit for polling live trend data and rendering charts.
 
   CONNECTS TO:
-  - UIController maps GET / to render this template.
-  - static/js/app.js provides all the interactivity and API calls.
-  - static/css/style.css provides the visual styling.
-  - CrawlController REST endpoints are called by the JavaScript in this page.
+  - UIController maps GET / to serve this placeholder template.
+  - The Angular project and CrawlController REST API are the real system components.
 -->
