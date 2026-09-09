@@ -1,27 +1,24 @@
 
 /*
-  FILE: style.css
-  =================
-  The stylesheet for the Neural Crawler web UI. Provides all visual styling for
-  both index.html and results.html.
+  FILE: style.css  — PLACEHOLDER
+  =================================
+  This stylesheet is no longer the primary UI styling layer.
 
-  WHAT IT STYLES:
-  - Overall page layout: centered container, typography, color palette.
-  - The URL input form and crawl config fields.
-  - The status panel: color-coded status badges (green for RUNNING, blue for COMPLETED,
-    red for FAILED), animated progress indicators.
-  - The results table: alternating row colors, hover states, responsive column widths,
-    scrollable overflow for wide screens.
-  - Export buttons and action button styles.
-  - Loading spinner / skeleton placeholders shown while crawl results are being fetched.
-  - Basic responsive design so the UI is usable on smaller screens.
+  WHAT REPLACED IT:
+  The Angular frontend manages all styling through its own component-scoped CSS files
+  and a global stylesheet within the Angular project. Angular's build pipeline
+  compiles, minifies, and bundles CSS independently.
 
-  WHY IT EXISTS:
-  Without this file the UI is unstyled raw HTML. A usable, readable interface matters
-  for developer experience when demonstrating or using the tool.
+  WHAT THIS FILE IS FOR NOW:
+  Styles the minimal placeholder page served by UIController at GET / — just enough
+  to make the "please navigate to the Angular app" message look presentable rather
+  than raw unstyled HTML.
+
+  Styles needed here are minimal:
+  - Body font, background color, centered layout
+  - A styled link/button pointing to the Angular dev server URL
 
   CONNECTS TO:
-  - index.html and results.html link this stylesheet in their <head>.
-  - Class names here must match the class attributes used in the HTML templates and
-    dynamically added by app.js when building the results table.
+  - index.html (the placeholder template) references this stylesheet.
+  - The Angular project has its own styles completely separate from this file.
 */
