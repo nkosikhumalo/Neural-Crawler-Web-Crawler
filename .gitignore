@@ -1,2 +1,5 @@
 neural-crawler/target/
 neural-crawler/logs/
+
+frontend/node_modules/
+frontend/dist/
