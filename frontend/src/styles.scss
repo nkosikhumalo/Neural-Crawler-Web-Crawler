@@ -1,0 +1,38 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-size: 16px;
+}
+
+body {
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  background: #f4f7fb;
+  color: #172033;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #1558b0;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #0d3b78;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #e7edf5;
+}
+::-webkit-scrollbar-thumb {
+  background: #a9b8cc;
+  border-radius: 4px;
+}
