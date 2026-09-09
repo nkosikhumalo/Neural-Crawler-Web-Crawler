@@ -1,26 +1,26 @@
 
 <!--
-  FILE: results.html (Thymeleaf template)
-  =========================================
-  An optional dedicated results page for viewing crawl output in a full-page
-  server-rendered table (alternative to the AJAX-rendered table in index.html).
+  FILE: results.html  — DEPRECATED / PLACEHOLDER
+  =================================================
+  This Thymeleaf server-rendered results page is no longer part of the active system.
 
-  WHAT IT CONTAINS:
-  - A Thymeleaf th:each loop that iterates over a List<BookItem> model attribute
-    and renders each book as a table row with columns for title, price, availability,
-    rating, and URL.
-  - A summary header showing total items count, crawl duration, and source URL.
-  - Pagination controls if the result set is large (server-side pagination).
-  - "Back to Dashboard" link and export download buttons.
+  WHAT REPLACED IT:
+  The Angular SPA renders all trend data dynamically through REST API calls to
+  CrawlController. The results view in Angular consists of:
+  - A radar dashboard component showing tech cards grouped by category
+  - A leaderboard component consuming GET /api/trends/rising and /api/trends/declining
+  - A snapshot timeline component consuming GET /api/snapshot/{id}
+  - A detail view for a single tech's history via GET /api/trends/{canonicalName}
 
-  WHY IT EXISTS:
-  Provides a clean, bookmarkable full-page view of results — useful if the user wants
-  to share a results URL or view data without the crawl control UI in the way.
-  Also demonstrates Thymeleaf's server-side templating as an alternative to pure SPA.
+  WHY THIS FILE STILL EXISTS:
+  Spring Boot's Thymeleaf auto-configuration scans the templates/ directory.
+  Having no templates at all is fine, but keeping this file here as a placeholder
+  prevents any accidental 404 if a stale reference to /results exists somewhere.
+
+  If the Angular app is ever built and placed into src/main/resources/static/,
+  both this file and index.html can be replaced with the Angular build output.
 
   CONNECTS TO:
-  - UIController maps GET /results to render this template, injecting the items list
-    as a model attribute.
-  - BookItem is the object type Thymeleaf iterates over to build table rows.
-  - static/css/style.css styles the table layout.
+  - UIController previously mapped GET /results here — that mapping is now removed.
+  - CrawlController REST endpoints are the live data surface consumed by Angular.
 -->
