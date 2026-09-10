@@ -1,0 +1,75 @@
+<div class="dashboard-container">
+  <header class="dashboard-header">
+    <div class="brand-block">
+      <p class="eyebrow">Developer intelligence</p>
+      <h1>Tech Stack <span>Radar</span></h1>
+      <p class="subtitle">The latest signals from the developer ecosystem, gathered in one readable view.</p>
+    </div>
+    <div class="header-actions">
+      <span class="last-crawl" *ngIf="lastCrawlTime">Last crawl {{ lastCrawlTime | date:'MMM d, y, HH:mm' }}</span>
+      <button class="btn btn-primary" (click)="triggerCrawl()" [disabled]="isCrawling || loading">{{ isCrawling ? 'Crawling...' : 'Run crawl' }}</button>
+      <button class="btn" (click)="exportCsv()" [disabled]="!latestSnapshot || loading">Export CSV</button>
+      <button class="btn" (click)="exportJson()" [disabled]="!latestSnapshot || loading">Export JSON</button>
+    </div>
+  </header>
+
+  <div *ngIf="error" class="error-message">{{ error }}</div>
+  <div *ngIf="loading" class="loading-state"><div class="spinner"></div><p>Loading the latest signals...</p></div>
+
+  <div *ngIf="!loading && !latestSnapshot" class="empty-state">
+    <div class="empty-mark">NR</div>
+    <h2>Your radar is waiting</h2>
+    <p>Run a crawl to bring the latest news, jobs, languages, and technology trends into view.</p>
+    <button class="btn btn-primary" (click)="triggerCrawl()" [disabled]="isCrawling">{{ isCrawling ? 'Starting crawl...' : 'Start first crawl' }}</button>
+  </div>
+
+  <main *ngIf="!loading && latestSnapshot" class="dashboard-content">
+    <section class="lead-section" *ngIf="featuredNews; else noNews">
+      <div class="section-heading"><div><p class="eyebrow">Latest news</p><h2>What is happening now</h2></div><span class="section-count">{{ newsTrends.length }} of 50</span></div>
+      <article class="featured-story">
+        <div class="story-topic">{{ featuredNews.rawName || featuredNews.category || 'Developer ecosystem' }}</div>
+        <h3>{{ featuredNews.canonicalName }}</h3>
+        <p class="story-description">{{ featuredNews.description || 'A fresh signal from the developer community.' }}</p>
+        <div class="story-footer"><span class="source-label">Sourced from {{ formatSourceName(featuredNews.source) }}</span><a *ngIf="featuredNews.sourceUrl" [href]="featuredNews.sourceUrl" target="_blank" rel="noopener">Read the full story -&gt;</a></div>
+      </article>
+    </section>
+    <ng-template #noNews><section class="empty-feed"><p class="eyebrow">Latest news</p><h2>No news stories in this crawl</h2><p>The next crawl will check the news sources again.</p></section></ng-template>
+
+    <section class="feed-section" *ngIf="newsTrends.length > 1">
+      <div class="section-heading compact-heading"><div><p class="eyebrow">More from the feed</p><h2>News worth reading</h2></div><span class="section-count">{{ newsTrends.length - 1 }} stories</span></div>
+      <div class="news-grid">
+        <article class="news-card" *ngFor="let story of newsTrends.slice(1)">
+          <div class="card-kicker">{{ story.rawName || 'Technology signal' }}</div><h3>{{ story.canonicalName }}</h3>
+          <p>{{ story.description || 'Read the source for the full context behind this signal.' }}</p>
+          <div class="card-footer"><span>{{ formatSourceName(story.source) }}</span><a *ngIf="story.sourceUrl" [href]="story.sourceUrl" target="_blank" rel="noopener">Read -&gt;</a></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="split-section">
+      <div class="feed-section" *ngIf="jobTrends.length > 0">
+        <div class="section-heading compact-heading"><div><p class="eyebrow">Opportunities</p><h2>Jobs &amp; community signals</h2></div><span class="section-count">{{ jobTrends.length }} of 10</span></div>
+        <div class="compact-list"><article class="compact-card" *ngFor="let job of jobTrends"><h3>{{ job.canonicalName }}</h3><p>{{ job.description || 'Explore the discussion and related opportunity.' }}</p><div class="card-footer"><span>{{ job.mentionCount | number }} mentions</span><a *ngIf="job.sourceUrl" [href]="job.sourceUrl" target="_blank" rel="noopener">View source -&gt;</a></div></article></div>
+      </div>
+      <div class="feed-section" *ngIf="languageTrends.length > 0">
+        <div class="section-heading compact-heading"><div><p class="eyebrow">GitHub activity</p><h2>Languages to watch</h2></div><span class="section-count">{{ languageTrends.length }} of 10</span></div>
+        <div class="compact-list"><article class="compact-card language-card" *ngFor="let language of languageTrends"><div><h3>{{ language.tags?.[0] || language.canonicalName }}</h3><p>{{ language.description || language.canonicalName }}</p></div><div class="card-footer"><span>{{ language.starCount | number }} stars</span><a *ngIf="language.sourceUrl" [href]="language.sourceUrl" target="_blank" rel="noopener">Open GitHub -&gt;</a></div></article></div>
+      </div>
+    </section>
+
+    <section class="insights-section" *ngIf="risingTrends.length > 0 || decliningTrends.length > 0">
+      <div class="section-heading compact-heading"><div><p class="eyebrow">Movement</p><h2>Trend shifts</h2></div></div>
+      <div class="movement-grid">
+        <div class="movement-column" *ngIf="risingTrends.length > 0"><h3>Rising</h3><div class="movement-item" *ngFor="let trend of risingTrends.slice(0, 5)"><span>{{ trend.canonicalName }}</span><strong class="positive">{{ formatGrowthPercent(trend.growthPercent) }}</strong></div></div>
+        <div class="movement-column" *ngIf="decliningTrends.length > 0"><h3>Declining</h3><div class="movement-item" *ngFor="let trend of decliningTrends.slice(0, 5)"><span>{{ trend.canonicalName }}</span><strong class="negative">{{ formatGrowthPercent(trend.growthPercent) }}</strong></div></div>
+      </div>
+    </section>
+
+    <section class="data-section" *ngIf="trends.length > 0">
+      <div class="section-heading compact-heading"><div><p class="eyebrow">Full crawl data</p><h2>All collected signals</h2></div><span class="section-count">{{ trends.length }} records</span></div>
+      <div class="table-container"><table class="trends-table"><thead><tr><th>Technology</th><th>Source</th><th>Category</th><th>Stars</th><th>Mentions</th><th>Downloads</th></tr></thead><tbody>
+        <tr *ngFor="let trend of trends"><td><a *ngIf="trend.sourceUrl" [href]="trend.sourceUrl" target="_blank" rel="noopener">{{ trend.canonicalName }}</a><span *ngIf="!trend.sourceUrl">{{ trend.canonicalName }}</span><small *ngIf="trend.description">{{ trend.description }}</small></td><td><span class="source-badge">{{ formatSourceName(trend.source) }}</span></td><td>{{ trend.category || '-' }}</td><td>{{ trend.starCount != null ? (trend.starCount | number) : '-' }}</td><td>{{ trend.mentionCount != null ? (trend.mentionCount | number) : '-' }}</td><td>{{ trend.downloadCount != null ? (trend.downloadCount | number) : '-' }}</td></tr>
+      </tbody></table></div>
+    </section>
+  </main>
+</div>
